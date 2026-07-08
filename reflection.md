@@ -7,10 +7,16 @@
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
+Here, I have decided on 4 core classes: Owner, Pet, Tasks, Scheduler
+A scheduler takes Owner info to see their availability and what needs to be done urgently based on pet's needs. Owner can write down how many pets they have, and for each pet, can write down the tasks that need to be done, as well as what time they should be completed by. from there, a schedule can be created so that owner can then look at and follow to make sure these tasks are done. 
+
+
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+
+
 
 ---
 
