@@ -13,7 +13,12 @@ class Task:
     completed: bool = False
 
     def fits_in(self, minutes_remaining: int) -> bool:
+        """Return True if this task's duration fits within the remaining time."""
         return self.duration_minutes <= minutes_remaining
+
+    def mark_complete(self) -> None:
+        """Mark this task as completed so the scheduler skips it."""
+        self.completed = True
 
 
 @dataclass
@@ -24,9 +29,11 @@ class Pet:
     tasks: list[Task] = field(default_factory=list)
 
     def add_task(self, task: Task) -> None:
+        """Append a new task to this pet's task list."""
         self.tasks.append(task)
 
     def edit_task(self, title: str, updated_task: Task) -> None:
+        """Replace the task matching the given title with updated_task."""
         for i, task in enumerate(self.tasks):
             if task.title == title:
                 self.tasks[i] = updated_task
@@ -41,6 +48,7 @@ class ScheduleEntry:
     reasoning: str = ""
 
     def start_time_str(self) -> str:
+        """Convert start_time in minutes to a HH:MM string."""
         hours = self.start_time // 60
         minutes = self.start_time % 60
         return f"{hours:02d}:{minutes:02d}"
@@ -51,9 +59,11 @@ class Schedule:
         self.entries: list[ScheduleEntry] = []
 
     def add_entry(self, task: Task, start_time: int, pet_name: str = "", reasoning: str = "") -> None:
+        """Add a scheduled task entry with its start time, pet name, and reasoning."""
         self.entries.append(ScheduleEntry(task=task, start_time=start_time, pet_name=pet_name, reasoning=reasoning))
 
     def display(self) -> str:
+        """Format and return the full schedule as a readable string."""
         if not self.entries:
             return "No tasks scheduled."
         lines = []
@@ -74,21 +84,24 @@ class Owner:
         self.pets: list[Pet] = []
 
     def add_pet(self, pet: Pet) -> None:
+        """Register a pet under this owner."""
         self.pets.append(pet)
 
     def get_all_tasks(self) -> list[Task]:
+        """Return a flat list of all tasks across every pet this owner has."""
         tasks = []
         for pet in self.pets:
             tasks.extend(pet.tasks)
         return tasks
 
     def get_schedule(self) -> Schedule:
+        """Generate and return today's schedule for this owner's pets."""
         return Scheduler().generate(self)
 
 
 class Scheduler:
     def generate(self, owner: Owner) -> Schedule:
-        # Collect (task, pet_name) pairs so we keep track of which pet each task belongs to
+        """Build a Schedule by sorting pending tasks by priority and fitting them into available time."""
         pending = [
             (task, pet.name)
             for pet in owner.pets
