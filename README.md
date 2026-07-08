@@ -75,9 +75,9 @@ python -m pytest
 
 The test suite (`tests/test_pawpal.py`) covers the core scheduling behaviors:
 
-- **Sorting correctness** — `Scheduler.sort_by_time()` orders tasks chronologically by preferred time, pushes untimed tasks to the end, and preserves the original order for tasks with equal or missing times.
-- **Recurrence logic** — completing a `"daily"` or `"weekly"` task via `Pet.complete_task()` marks the original done and appends a new occurrence due one interval later; non-recurring tasks and unknown/duplicate titles are handled without creating spurious tasks.
-- **Conflict detection** — `Scheduler.detect_conflicts()` flags overlapping schedule entries, correctly treats back-to-back (non-overlapping) entries as conflict-free, and handles the empty-schedule case.
+- Sorting correctness — `Scheduler.sort_by_time()` orders tasks chronologically by preferred time, pushes untimed tasks to the end, and preserves the original order for tasks with equal or missing times.
+- Recurrence logic — completing a "daily" or "weekly" task via `Pet.complete_task()` marks the original done and appends a new occurrence due one interval later; non-recurring tasks and unknown/duplicate titles are handled without creating spurious tasks.
+- Conflict detection — `Scheduler.detect_conflicts()` flags overlapping schedule entries, correctly treats back-to-back (non-overlapping) entries as conflict-free, and handles the empty-schedule case.
 - Baseline checks that marking a task complete updates its status and that adding a task updates a pet's task list.
 
 Sample test output:
@@ -94,9 +94,18 @@ tests\test_pawpal.py ...............                                     [100%]
 ============================= 15 passed in 0.07s ==============================
 ```
 
-**Confidence Level:** ⭐⭐⭐⭐☆ (4/5)
+Confidence Level:(4/5)
 
-All 15 tests pass, including boundary cases for sorting ties, back-to-back scheduling, and recurrence date math. Confidence isn't a full 5/5 because the tests exercise these behaviors in isolation — there's no test yet that runs `Scheduler.generate()` end-to-end with recurring tasks re-entering the pool, or that checks conflict detection against `generate()`'s own output (which by construction never overlaps, so that path is currently unverified in combination).
+All 15 tests pass, including boundary cases for sorting ties, back-to-back scheduling, and recurrence date math. Confidence isn't a full 5/5 because the tests exercise these behaviors in isolation there's no test yet that runs `Scheduler.generate()` end-to-end with recurring tasks re-entering the pool, or that checks conflict detection against `generate()`'s own output (which by construction never overlaps, so that path is currently unverified in combination).
+
+## ✨ Features
+
+- **Priority-based scheduling** — `Scheduler.generate()` sorts all pending tasks by priority (high → medium → low, stable for ties) and greedily fits each into the owner's remaining time budget, generating a plain-English reason for every placement (or skip) as it goes.
+- **Sorting by time** — `Scheduler.sort_by_time()` orders tasks by their preferred time of day (ascending, minutes from midnight); tasks with no preferred time are sorted to the end rather than dropped or errored on.
+- **Conflict warnings** — `Scheduler.detect_conflicts()` sweeps a generated schedule once (sorted by start time, O(n log n)) and flags any two entries whose time windows overlap, returning human-readable warning strings instead of raising — back-to-back (non-overlapping) tasks are correctly treated as conflict-free.
+- **Daily & weekly recurrence** — `Task.next_occurrence()` + `Pet.complete_task()` let a task carry a `"daily"` or `"weekly"` recurrence; completing it marks the original done and automatically queues a fresh, incomplete instance due one interval later.
+- **Task filtering** — `Owner.filter_tasks(completed=, pet_name=)` returns matching `(task, pet_name)` pairs by completion status, pet, or both, without requiring a full schedule regeneration.
+- **Cross-pet task aggregation** — `Owner.get_all_tasks()` flattens tasks across every pet an owner has, so scheduling and sorting operate on the full daily load rather than per-pet.
 
 ## 📐 Smarter Scheduling
 
@@ -111,12 +120,67 @@ All 15 tests pass, including boundary cases for sorting ties, back-to-back sched
 
 ## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+### Main UI features
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+The Streamlit app (`app.py`) walks through four steps:
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+1. Owner Info — enter a name and how many minutes are available today; saving updates the owner in place, so pets/tasks you've already added aren't lost.
+2. Add a Pet — enter name, species, and age; added pets appear in a running table with their task counts.
+3. Add a Task — assign a task (title, duration, priority) to a pet, optionally with a preferred time and a recurrence (none/daily/weekly). Tasks appear in a table showing recurrence and completion status, and any pending task can be marked complete from a dropdown.
+4. Generate Schedule — a "preview by preferred time" expander shows tasks ordered by Scheduler.sort_by_time(), and the "Generate schedule" button runs Scheduler.generate() to produce today's plan with reasoning for each entry, plus any conflict warnings from Scheduler.detect_conflicts().
+
+### Example workflow
+
+1. Save owner "Jordan" with 90 available minutes.
+2. Add a pet, "Biscuit" (dog).
+3. Add a task, "Morning walk" (30 min, high priority, daily recurrence, preferred time 7:00am).
+4. Click "Generate schedule" to see the plan for today, along with the reasoning behind each placement.
+5. Mark "Morning walk" complete — since it recurs daily, a fresh pending occurrence for tomorrow is queued automatically.
+
+### Key Scheduler behaviors shown
+
+- Priority-based scheduling: generate() sorts pending tasks by priority (high → medium → low) and greedily fits each into the remaining time budget, explaining why each task landed where it did.
+- Time-based sorting: sort_by_time() orders tasks by preferred time of day, with untimed tasks sorted last — useful for previewing a day at a glance independent of priority.
+- Conflict warnings: detect_conflicts() flags any two schedule entries with overlapping time windows (e.g., two pets' tasks double-booked at the same time) without ever raising an exception — warnings are surfaced for the owner to resolve.
+- Recurring tasks: completing a "daily" or "weekly" task via complete_task() automatically queues its next occurrence, due one interval later.
+
+### Sample CLI output (`python main.py`)
+
+```
+=================================================================
+  Today's Schedule for Jordan
+=================================================================
+  #    TIME    PET          TASK                      DUR  PRIORITY
+-----------------------------------------------------------------
+  1.  08:00  |  Biscuit     |  Morning walk           30 min  [high]
+       -> Priority is high; 90 min remaining, task takes 30 min.
+
+  2.  08:30  |  Biscuit     |  Feeding                10 min  [high]
+       -> Priority is high; 60 min remaining, task takes 10 min.
+
+  3.  08:40  |  Mochi       |  Grooming               15 min  [medium]
+       -> Priority is medium; 50 min remaining, task takes 15 min.
+
+  4.  08:55  |  Mochi       |  Playtime               20 min  [low]
+       -> Priority is low; 35 min remaining, task takes 20 min.
+
+=================================================================
+
+Tasks sorted by time:
+  07:00  Morning walk
+  07:30  Feeding
+  09:00  Grooming
+  09:00  Playtime
+
+Biscuit's pending tasks:
+  Biscuit: Morning walk
+  Biscuit: Feeding
+
+Completing 'Morning walk' (daily) for Biscuit...
+  Morning walk    [done]  due=n/a  recurrence=daily
+  Feeding         [pending]  due=n/a  recurrence=None
+  Morning walk    [pending]  due=2026-07-09  recurrence=daily
+
+Conflict detection demo:
+  WARNING: Conflict: 'Vet visit' (Biscuit) runs 09:00-09:30, overlapping 'Grooming' (Mochi) starting at 09:00.
+```
