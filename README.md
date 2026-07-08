@@ -54,6 +54,19 @@ Paste a sample of your app's CLI or Streamlit output here so a reader can see wh
 #   ...
 ```
 
+```
+  Today's Schedule for Jordan
+========================================
+08:00 — [Biscuit] Morning walk (30 min) [high]
+  Why: Priority is high; 90 min remaining, task takes 30 min.
+08:30 — [Biscuit] Feeding (10 min) [high]
+  Why: Priority is high; 60 min remaining, task takes 10 min.
+08:40 — [Mochi] Grooming (15 min) [medium]
+  Why: Priority is medium; 50 min remaining, task takes 15 min.
+08:55 — [Mochi] Playtime (20 min) [low]
+  Why: Priority is low; 35 min remaining, task takes 20 min.
+```
+
 ## 🧪 Testing PawPal+
 
 ```bash
