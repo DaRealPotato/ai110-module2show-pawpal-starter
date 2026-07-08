@@ -19,21 +19,25 @@ class Pet:
     age: int
     tasks: list[Task] = field(default_factory=list)
 
-
-class Availability:
-    def __init__(self, start_hour: int, end_hour: int):
-        self.start_hour = start_hour
-        self.end_hour = end_hour
-
-    def get_total_minutes(self) -> int:
+    def add_task(self, task: Task) -> None:
         pass
+
+    def edit_task(self, title: str, updated_task: Task) -> None:
+        pass
+
+
+@dataclass
+class ScheduleEntry:
+    task: Task
+    start_time: int   # minutes from start of day, e.g. 480 = 8:00am
+    reasoning: str = ""
 
 
 class Schedule:
     def __init__(self):
-        self.entries: list[dict] = []
+        self.entries: list[ScheduleEntry] = []
 
-    def add_entry(self, task: Task, start_time: int) -> None:
+    def add_entry(self, task: Task, start_time: int, reasoning: str = "") -> None:
         pass
 
     def display(self) -> str:
@@ -45,15 +49,11 @@ class Owner:
         self.name = name
         self.available_minutes = available_minutes
         self.pet: Pet = None
-        self.availability: Availability = None
-
-    def add_task(self, task: Task) -> None:
-        pass
 
     def get_schedule(self) -> Schedule:
-        pass
+        return Scheduler().generate(self)
 
 
 class Scheduler:
-    def generate(self, owner: Owner, tasks: list[Task]) -> Schedule:
+    def generate(self, owner: Owner) -> Schedule:
         pass

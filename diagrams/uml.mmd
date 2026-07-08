@@ -2,7 +2,7 @@ classDiagram
     class Owner {
         +str name
         +int available_minutes
-        +add_task(task) None
+        +Pet pet
         +get_schedule() Schedule
     }
 
@@ -10,6 +10,9 @@ classDiagram
         +str name
         +str species
         +int age
+        +list tasks
+        +add_task(task) None
+        +edit_task(title, updated_task) None
     }
 
     class Task {
@@ -20,24 +23,24 @@ classDiagram
         +fits_in(minutes_remaining) bool
     }
 
-    class Availability {
-        +int start_hour
-        +int end_hour
-        +get_total_minutes() int
+    class ScheduleEntry {
+        +Task task
+        +int start_time
+        +str reasoning
     }
 
     class Schedule {
         +list entries
-        +add_entry(task, start_time) None
+        +add_entry(task, start_time, reasoning) None
         +display() str
     }
 
     class Scheduler {
-        +generate(owner, tasks) Schedule
+        +generate(owner) Schedule
     }
 
     Owner "1" --> "1" Pet : owns
     Pet "1" --> "*" Task : has needs
-    Owner "1" --> "1" Availability : has
-    Scheduler --> Owner : takes
+    Owner --> Scheduler : calls via get_schedule
     Scheduler --> Schedule : produces
+    Schedule "1" --> "*" ScheduleEntry : contains

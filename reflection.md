@@ -16,7 +16,7 @@ A scheduler takes Owner info to see their availability and what needs to be done
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
 
-
+I was at first thinking about schedule, however Claude reminded me that it might be better to separate the jobs: one should make the result list, while another is in charge of building it. I personally want to keep it separate, as it might end up being too much code in one file (For the sake of keeping things neat.)
 
 ---
 
