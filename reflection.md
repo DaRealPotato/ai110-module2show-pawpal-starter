@@ -27,10 +27,14 @@ I was at first thinking about schedule, however Claude reminded me that it might
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
 - How did you decide which constraints mattered most?
 
+The scheduler considers priority (tasks are sorted high -> medium -> low before anything else), available time (Owner.available_minutes caps the day, and each task checks fits_in(minutes_remaining) before being placed), preferred time (Task.time, used for sorting and conflict detection), and completion status (completed tasks are excluded entirely). I decided priority mattered most because a pet's schedule is really about urgency -- a dog needing a walk matters more than optional playtime -- more than optimizing minute-by-minute efficiency, so priority is the primary sort key and time/duration are secondary.
+
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
+
+Scheduler.generate() uses a first-fit greedy algorithm instead of an optimal one: it walks the priority-sorted list once and packs each task in if it fits in whatever time is left, without backtracking to check if skipping a task would let two smaller ones fit better. This is reasonable because a pet owner's task list is small (a handful of tasks per pet), so the greedy approach is easy to reason about and predict ("higher priority always gets scheduled first"), and the loss versus a perfectly optimal packing is negligible compared to the gain in simplicity and code I can actually trust and debug.
 
 ---
 

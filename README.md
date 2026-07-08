@@ -85,14 +85,14 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
-
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Task sorting | `Scheduler.sort_by_time()` | Sorts tasks by their preferred `time` (minutes from midnight); tasks with no preferred time sort last. The main daily plan itself (`Scheduler.generate()`) sorts by `priority` first (high → medium → low), then fits each task into whatever time remains. |
+| Filtering | `Owner.filter_tasks(completed=, pet_name=)` | Returns `(task, pet_name)` pairs filtered by completion status, pet name, or both — e.g. "show me Biscuit's pending tasks." |
+| Conflict handling | `Scheduler.detect_conflicts()` | Sorts schedule entries by start time and sweeps adjacent pairs once (O(n log n)) to find overlapping time windows. Returns a list of warning strings instead of raising, so a double-booking is surfaced without crashing the program. |
+| Recurring tasks | `Task.next_occurrence()`, `Pet.complete_task()` | Tasks can carry a `recurrence` of `"daily"` or `"weekly"`. Completing a recurring task via `Pet.complete_task(title)` marks it done and automatically appends a fresh instance due one interval later (`due_date + timedelta(days=1)` or `timedelta(days=7)`). |
+
+
 
 ## 📸 Demo Walkthrough
 

@@ -1,7 +1,16 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import date, timedelta
 
 
 PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
+
+RECURRENCE_INTERVALS = {"daily": timedelta(days=1), "weekly": timedelta(days=7)}
+
+
+def _format_time(minutes_from_midnight: int) -> str:
+    """Convert minutes from midnight to a HH:MM string."""
+    hours, minutes = divmod(minutes_from_midnight, 60)
+    return f"{hours:02d}:{minutes:02d}"
 
 
 @dataclass
@@ -9,7 +18,9 @@ class Task:
     title: str
     duration_minutes: int
     priority: str  # "low", "medium", "high"
-    is_recurring: bool = False
+    time: int | None = None  # preferred start time in minutes from midnight
+    recurrence: str | None = None  # "daily", "weekly", or None
+    due_date: date | None = None
     completed: bool = False
 
     def fits_in(self, minutes_remaining: int) -> bool:
@@ -19,6 +30,20 @@ class Task:
     def mark_complete(self) -> None:
         """Mark this task as completed so the scheduler skips it."""
         self.completed = True
+
+    def next_occurrence(self) -> "Task | None":
+        """Compute the next instance of a recurring task.
+
+        Returns:
+            A new, incomplete Task due one interval (RECURRENCE_INTERVALS["daily"]
+            or ["weekly"]) after this task's due_date (or after today, if unset),
+            or None if this task has no recurrence set.
+        """
+        interval = RECURRENCE_INTERVALS.get(self.recurrence)
+        if interval is None:
+            return None
+        base_date = self.due_date or date.today()
+        return replace(self, due_date=base_date + interval, completed=False)
 
 
 @dataclass
@@ -39,6 +64,21 @@ class Pet:
                 self.tasks[i] = updated_task
                 return
 
+    def complete_task(self, title: str) -> None:
+        """Mark the named task complete and, if it recurs, queue up its next occurrence.
+
+        Args:
+            title: The title of the task to complete. Matches the first
+                pending (not-yet-completed) task with this title.
+        """
+        for task in self.tasks:
+            if task.title == title and not task.completed:
+                task.mark_complete()
+                next_task = task.next_occurrence()
+                if next_task is not None:
+                    self.tasks.append(next_task)
+                return
+
 
 @dataclass
 class ScheduleEntry:
@@ -49,9 +89,7 @@ class ScheduleEntry:
 
     def start_time_str(self) -> str:
         """Convert start_time in minutes to a HH:MM string."""
-        hours = self.start_time // 60
-        minutes = self.start_time % 60
-        return f"{hours:02d}:{minutes:02d}"
+        return _format_time(self.start_time)
 
 
 class Schedule:
@@ -98,8 +136,69 @@ class Owner:
         """Generate and return today's schedule for this owner's pets."""
         return Scheduler().generate(self)
 
+    def filter_tasks(self, completed: bool | None = None, pet_name: str | None = None) -> list[tuple[Task, str]]:
+        """Filter this owner's tasks by completion status and/or pet name.
+
+        Args:
+            completed: If set, only include tasks whose completed flag matches.
+                Leave as None to include tasks regardless of status.
+            pet_name: If set, only include tasks belonging to the pet with this name.
+                Leave as None to include tasks from every pet.
+
+        Returns:
+            A list of (task, pet_name) pairs matching all given filters.
+        """
+        results = []
+        for pet in self.pets:
+            if pet_name is not None and pet.name != pet_name:
+                continue
+            for task in pet.tasks:
+                if completed is not None and task.completed != completed:
+                    continue
+                results.append((task, pet.name))
+        return results
+
 
 class Scheduler:
+    def sort_by_time(self, tasks: list[Task]) -> list[Task]:
+        """Sort tasks by their preferred time of day.
+
+        Args:
+            tasks: Tasks to sort. Tasks may or may not have a preferred `time` set.
+
+        Returns:
+            A new list ordered by ascending `time` (minutes from midnight);
+            tasks with no preferred time (time is None) are placed last.
+        """
+        return sorted(tasks, key=lambda t: (t.time is None, t.time if t.time is not None else 0))
+
+    def detect_conflicts(self, schedule: Schedule) -> list[str]:
+        """Lightweight overlap check: flag any two entries whose time windows intersect.
+
+        Sorts entries by start time and sweeps adjacent pairs once (O(n log n)),
+        rather than comparing every pair of entries (O(n^2)). Returns human-readable
+        warning strings instead of raising, so a conflict never crashes the
+        program -- it's surfaced to the caller to print or log as needed.
+
+        Args:
+            schedule: The Schedule whose entries should be checked for overlaps.
+
+        Returns:
+            A list of warning messages, one per overlapping pair of entries found.
+            Empty if no conflicts exist.
+        """
+        warnings = []
+        sorted_entries = sorted(schedule.entries, key=lambda e: e.start_time)
+        for current, nxt in zip(sorted_entries, sorted_entries[1:]):
+            current_end = current.start_time + current.task.duration_minutes
+            if current_end > nxt.start_time:
+                warnings.append(
+                    f"Conflict: '{current.task.title}' ({current.pet_name}) runs "
+                    f"{current.start_time_str()}-{_format_time(current_end)}, "
+                    f"overlapping '{nxt.task.title}' ({nxt.pet_name}) starting at {nxt.start_time_str()}."
+                )
+        return warnings
+
     def generate(self, owner: Owner) -> Schedule:
         """Build a Schedule by sorting pending tasks by priority and fitting them into available time."""
         pending = [
