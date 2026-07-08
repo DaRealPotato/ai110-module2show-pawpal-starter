@@ -70,18 +70,33 @@ Paste a sample of your app's CLI or Streamlit output here so a reader can see wh
 ## 🧪 Testing PawPal+
 
 ```bash
-# Run the full test suite:
-pytest
-
-# Run with coverage:
-pytest --cov
+python -m pytest
 ```
+
+The test suite (`tests/test_pawpal.py`) covers the core scheduling behaviors:
+
+- **Sorting correctness** — `Scheduler.sort_by_time()` orders tasks chronologically by preferred time, pushes untimed tasks to the end, and preserves the original order for tasks with equal or missing times.
+- **Recurrence logic** — completing a `"daily"` or `"weekly"` task via `Pet.complete_task()` marks the original done and appends a new occurrence due one interval later; non-recurring tasks and unknown/duplicate titles are handled without creating spurious tasks.
+- **Conflict detection** — `Scheduler.detect_conflicts()` flags overlapping schedule entries, correctly treats back-to-back (non-overlapping) entries as conflict-free, and handles the empty-schedule case.
+- Baseline checks that marking a task complete updates its status and that adding a task updates a pet's task list.
 
 Sample test output:
 
 ```
-# Paste your pytest output here
+============================= test session starts =============================
+platform win32 -- Python 3.13.13, pytest-9.0.3, pluggy-1.6.0
+rootdir: C:\Users\arell\Codepath\ai110-module2show-pawpal-starter
+plugins: anyio-4.13.0
+collected 15 items
+
+tests\test_pawpal.py ...............                                     [100%]
+
+============================= 15 passed in 0.07s ==============================
 ```
+
+**Confidence Level:** ⭐⭐⭐⭐☆ (4/5)
+
+All 15 tests pass, including boundary cases for sorting ties, back-to-back scheduling, and recurrence date math. Confidence isn't a full 5/5 because the tests exercise these behaviors in isolation — there's no test yet that runs `Scheduler.generate()` end-to-end with recurring tasks re-entering the pool, or that checks conflict detection against `generate()`'s own output (which by construction never overlaps, so that path is currently unverified in combination).
 
 ## 📐 Smarter Scheduling
 
